@@ -118,4 +118,3 @@ class SphericalTeacher(tr.utils.data.Dataset):
 		return self.total_size 
 	def __getitem__(self,index):
 		return self.X[index,:],self.Y[index,:]
-

@@ -76,21 +76,15 @@ class Trainer(object):
         test_loss_all = np.zeros((self.args.total_epochs))
         train_mmd_all = np.zeros((self.args.total_epochs))
         train_loss_all = np.zeros((self.args.total_epochs))
-        train_K_norm_all = np.zeros((self.args.total_epochs))
-        train_grad_K_norm_all = np.zeros((self.args.total_epochs))
-        train_hess_K_norm_all = np.zeros((self.args.total_epochs))
 
         for epoch in tqdm(range(start_epoch, start_epoch+self.args.total_epochs)):
-            total_iters,train_loss,train_mmd, train_K_norm, train_grad_K_norm, train_hess_K_norm = train_epoch(self.args, epoch,total_iters,self.loss,self.data_train,self.optimizer,'train',  device=self.device)
-            total_iters,valid_loss,valid_mmd, _, _, _ = train_epoch(self.args, epoch, total_iters, self.loss,self.data_valid,self.optimizer,'valid',  device=self.device)
+            total_iters,train_loss,train_mmd = train_epoch(epoch,total_iters,self.loss,self.data_train,self.optimizer,'train',  device=self.device)
+            total_iters,valid_loss,valid_mmd = train_epoch(epoch, total_iters, self.loss,self.data_valid,self.optimizer,'valid',  device=self.device)
             
             test_loss_all[epoch] = valid_loss
             test_mmd_all[epoch] = valid_mmd
             train_loss_all[epoch] = train_loss
             train_mmd_all[epoch] = train_mmd
-            train_K_norm_all[epoch] = train_K_norm
-            train_grad_K_norm_all[epoch] = train_grad_K_norm
-            train_hess_K_norm_all[epoch] = train_hess_K_norm
 
             if not np.isfinite(train_loss):
                 break 
@@ -110,10 +104,7 @@ class Trainer(object):
         np.save(os.path.join(self.log_dir, 'test_loss_all.npy'), test_loss_all)
         np.save(os.path.join(self.log_dir, 'train_mmd_all.npy'), train_mmd_all)
         np.save(os.path.join(self.log_dir, 'train_loss_all.npy'), train_loss_all)
-        np.save(os.path.join(self.log_dir, 'train_K_norm_all.npy'), train_K_norm_all)
-        np.save(os.path.join(self.log_dir, 'train_grad_K_norm_all.npy'), train_grad_K_norm_all)
-        np.save(os.path.join(self.log_dir, 'train_hess_K_norm_all.npy'), train_hess_K_norm_all)
-
+    
         return train_loss,valid_loss,train_mmd,valid_mmd
 
 
@@ -156,7 +147,7 @@ def weights_init(args,m):
         if m.bias:
             m.bias.data.normal_(mean=args['mean'],std=args['std'])
 
-def train_epoch(args, epoch,total_iters,Loss,data_loader, optimizer,phase, device="cuda"):
+def train_epoch(epoch,total_iters,Loss,data_loader, optimizer,phase, device="cuda"):
 
     # Training Loop
     # Lists to keep track of progress
@@ -193,53 +184,14 @@ def train_epoch(args, epoch,total_iters,Loss,data_loader, optimizer,phase, devic
 
     total_loss = cum_loss/(batch_idx+1)
     total_mmd = cum_mmd/(batch_idx+1)
-
-    # Code for computing the Jacobian and Hessian of the network
-    if np.mod(epoch, 1)==0:
-        if phase == 'train':
-            batch_size = inputs.shape[0]
-            out_ = Loss.student(inputs)[:, 0, :]
-            K = (out_.T @ out_) / batch_size
-            K_norm = K.mean()
-
-            J = []
-            for i in range(args.num_particles):
-                Loss.student.zero_grad()
-                out = Loss.student(inputs)[:, 0, i]
-                dummy_out = tr.ones_like(out)
-                out.backward(dummy_out, retain_graph=True)
-                J.append(torch.cat([p.grad.view(-1) for p in Loss.student.parameters()]))
-            Jacobian = torch.stack(J)
-            grad_K = (Jacobian.T @ out_.mean(0))
-            grad_K_norm = (grad_K ** 2).mean()
-            
-            H = []
-            for i in range(args.num_particles):
-                output = Loss.student(inputs)[:, 0, i].sum()
-                hessian = []
-                for idx, param in enumerate(Loss.student.parameters()):
-                    grad_param = torch.autograd.grad(output, param, create_graph=True)[0]
-                    for jdx, param2 in enumerate(Loss.student.parameters()):
-                        second_order_grad = torch.autograd.grad(grad_param.sum(), param2, retain_graph=True)[0]
-                        hessian.append(second_order_grad.view(-1))
-                hessian = torch.concatenate(hessian)
-                H.append(hessian)
-            Hess_K = torch.stack(H)
-            grad_K = (Hess_K.T @ out_.mean(0))
-            Hess_K_norm = (Hess_K ** 2).mean()
-            pause = True
-        else:
-            K_norm = 0
-            grad_K_norm = 0
-            Hess_K_norm = 0
-    ###
-            
     if np.mod(epoch, 100)==0:
         if phase=='valid':
             wandb.log({"Validation Loss": total_loss, "Validation MMD": total_mmd}, step=epoch)
         elif phase=='train':
             wandb.log({"Train Loss": total_loss, "Train MMD": total_mmd}, step=epoch)
-            wandb.log({"Validation K_norm": K_norm, "Validation grad_K_norm": grad_K_norm, "Validation Hess_K_norm": Hess_K_norm}, step=epoch)
         else:
             pass
-    return total_iters, total_loss, total_mmd, K_norm, grad_K_norm, Hess_K_norm
+    # if np.mod(epoch,10)==0:
+        # print('Epoch: '+ str(epoch) + ' | ' + phase + ' mmd: ' + str(round(total_mmd, 6)) + ' loss: ' + str(round(total_loss, 6)))
+        # pass
+    return total_iters, total_loss, total_mmd

@@ -215,4 +215,3 @@ def compute_grad(net,x):
         J.append(grads)
 
     return tr.stack(J,dim=0)
-

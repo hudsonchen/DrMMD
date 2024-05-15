@@ -30,7 +30,7 @@ plt.rc('xtick', labelsize=14, direction='in')
 plt.rc('ytick', labelsize=14, direction='in')
 plt.rc('figure', figsize=(6, 4))
 
-FLOW_LIST = ['mmd', 'chard']
+FLOW_LIST = ['mmd', 'drmmd']
 
 def compute_wasserstein_distance_numpy(X, Y):
     a, b = jnp.ones((X.shape[0], )) / X.shape[0], jnp.ones((Y.shape[0], )) / Y.shape[0]
@@ -79,9 +79,9 @@ def evaluate(args, ret, rate):
     mmd_divergence.pre_compute(X)
     mmd_distance = jnp.sqrt(jax.vmap(mmd_divergence)(ret.Ys[::eval_freq, :]))
 
-    chard_divergence = chard_fixed_target(args, args.kernel_fn, None)
-    chard_divergence.pre_compute(X)
-    chard_distance = jax.vmap(chard_divergence)(ret.Ys[::eval_freq, :])
+    drmmd_divergence = drmmd_fixed_target(args, args.kernel_fn, None)
+    drmmd_divergence.pre_compute(X)
+    drmmd_distance = jax.vmap(drmmd_divergence)(ret.Ys[::eval_freq, :])
 
     fig, axs = plt.subplots(1, 4, figsize=(12, 4))
     axs[0].plot(wass_distance, label='Wass 2')
@@ -90,9 +90,9 @@ def evaluate(args, ret, rate):
     axs[1].plot(mmd_distance, label='mmd')
     axs[1].set_xlabel('Iteration')
     axs[1].set_ylabel('MMD distance')
-    axs[2].plot(chard_distance, label='chard')
+    axs[2].plot(drmmd_distance, label='drmmd')
     axs[2].set_xlabel('Iteration')
-    axs[2].set_ylabel('CHARD distance')
+    axs[2].set_ylabel('drmmd distance')
     plt.savefig(f'{args.save_path}/distance.png')
     return 
 
@@ -116,7 +116,7 @@ def save_animation_1d(args, ret, rate, save_path):
         _animate_scatter.set_offsets(data)
         
         _animate_distance.set_xdata(num_timesteps_grid[:frame+1])
-        _animate_distance.set_ydata(chard_distance[:frame+1])
+        _animate_distance.set_ydata(drmmd_distance[:frame+1])
         return (_animate_density_ratio, _animate_scatter, _animate_distance)
 
     alpha = 0.1
@@ -131,15 +131,15 @@ def save_animation_1d(args, ret, rate, save_path):
     _animate_density_ratio, = ax1.plot(grid, densratio_obj.compute_density_ratio(grid), label='Density Ratio')
     ax1.set_title(r'Density ratio $\frac{\mu_t}{\pi}$')
 
-    chard_divergence = chard_fixed_target(args, args.kernel_fn, None)
-    chard_divergence.pre_compute(ret.divergence.X)
-    chard_distance = jax.vmap(chard_divergence)(ret.Ys[::rate, :])
-    chard_distance = np.array(chard_distance)
+    drmmd_divergence = drmmd_fixed_target(args, args.kernel_fn, None)
+    drmmd_divergence.pre_compute(ret.divergence.X)
+    drmmd_distance = jax.vmap(drmmd_divergence)(ret.Ys[::rate, :])
+    drmmd_distance = np.array(drmmd_distance)
     ax2.set_title(r'$\text{DrMMD}(\mu_t \| \pi)$')
     ax2.set_xlabel('Iteration')
     ax2.set_xlim([0, num_timesteps])
     ax2.set_ylim([0.0, 1.3])
-    _animate_distance, = ax2.plot(num_timesteps_grid[0], chard_distance[0], label='CHARD')
+    _animate_distance, = ax2.plot(num_timesteps_grid[0], drmmd_distance[0], label='drmmd')
 
     ax3.scatter(ret.divergence.X[:, 0], ret.divergence.X[:, 0] * 0.0, label=r'$\pi$')
     _animate_scatter = ax3.scatter(jnp.clip(ret.get_Yt(0)[:, 0], -1, 1), ret.get_Yt(0)[:, 0] * 0.0, label=r'$\mu_t$')

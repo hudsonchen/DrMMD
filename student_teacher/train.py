@@ -45,7 +45,7 @@ parser.add_argument('--dtype', default = 'float32' ,type= str,  help='precision:
 
 # Reproducibility parameters 
 parser.add_argument('--seed', default = 1 ,type= int,  help='seed for the random number generator on pytorch')
-parser.add_argument('--log_dir', default = './results/',type= str,  help='log directory ')
+parser.add_argument('--log_dir', default = './results/student_teacher/',type= str,  help='log directory ')
 parser.add_argument('--log_name', default = 'mmd',type= str,  help='log name')
 parser.add_argument('--log_in_file', action='store_true',  help='to log output on a file')
 
@@ -56,7 +56,7 @@ parser.add_argument('--student_net', default = 'NoisyOneHidden' ,type= str,   he
 parser.add_argument('--d_int', default = 50 ,type= int,  help='dim input data')
 parser.add_argument('--d_out', default = 1 ,type= int,  help='dim out feature')
 parser.add_argument('--H', default = 3  ,type= int,  help='num of hidden layers in the teacher network')
-parser.add_argument('--num_particles', default = 3 ,type= int,  help='num_particles*H = number of hidden units in the student network ')
+parser.add_argument('--num_particles', default = 1000 ,type= int,  help='num_particles*H = number of hidden units in the student network ')
 
 # Initialization parameters
 parser.add_argument('--mean_student', default = 0.001  ,type= float,  help='mean initial value for the student weights')
@@ -78,7 +78,6 @@ args = make_flags(args,args.config)
 exp = Trainer(args)
 exp.train()
 print("Program Finished!")
-
 
 
 
