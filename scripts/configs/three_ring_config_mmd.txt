@@ -1,0 +1,6 @@
+--dataset ThreeRing --flow mmd --kernel Gaussian --lmbda 1000.0 --step_size 0.1 --bandwidth 0.1 --step_num 100000 --particle_num 300 --opt sgd --seed 42
+--dataset ThreeRing --flow mmd --kernel Gaussian --lmbda 1000.0 --step_size 0.1 --bandwidth 0.15 --step_num 100000 --particle_num 300 --opt sgd --seed 42
+--dataset ThreeRing --flow mmd --kernel Gaussian --lmbda 1000.0 --step_size 0.1 --bandwidth 0.2 --step_num 100000 --particle_num 300 --opt sgd --seed 42
+--dataset ThreeRing --flow mmd --kernel Gaussian --lmbda 1000.0 --step_size 0.01 --bandwidth 0.1 --step_num 100000 --particle_num 300 --opt sgd --seed 42
+--dataset ThreeRing --flow mmd --kernel Gaussian --lmbda 1000.0 --step_size 0.01 --bandwidth 0.15 --step_num 100000 --particle_num 300 --opt sgd --seed 42
+--dataset ThreeRing --flow mmd --kernel Gaussian --lmbda 1000.0 --step_size 0.01 --bandwidth 0.2 --step_num 100000 --particle_num 300 --opt sgd --seed 42

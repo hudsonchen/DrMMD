@@ -1,0 +1,9 @@
+python student_teacher/train.py --device 0 --lmbda 1000.0 --loss chard --lr 0.1 --with_noise false --noise_decay_freq 500 --seed 42
+python student_teacher/train.py --device 0 --lmbda 10000.0 --loss chard --lr 0.1 --with_noise false --noise_decay_freq 500 --seed 42
+python student_teacher/train.py --device 0 --lmbda 0.01 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
+python student_teacher/train.py --device 0 --lmbda 0.03 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
+python student_teacher/train.py --device 0 --lmbda 0.1 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
+python student_teacher/train.py --device 0 --lmbda 1.0 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
+python student_teacher/train.py --device 0 --lmbda 10.0 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
+python student_teacher/train.py --device 0 --lmbda 100.0 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
+python student_teacher/train.py --device 0 --lmbda 1000.0 --loss chard --lr 0.1 --with_noise true --noise_decay_freq 1000 --seed 42
