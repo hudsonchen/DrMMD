@@ -2,6 +2,7 @@ out/
 __pycache__/
 *.pyc
 .vscode/
+generate_config.py
 .lsp_symlink
 .ropeproject/
 .virtual_documents/
