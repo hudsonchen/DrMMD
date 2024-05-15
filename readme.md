@@ -22,7 +22,7 @@ You can vary the deregularization coefficient by altering the argument of `lmbda
 
 To reproduce the results for training student-teacher neural network, run the following command:
 
-`python student_teacher/train.py --device 0 --lmbda 0.1 --loss chard --lr 0.1 --with_noise false --noise_decay_freq 500 --seed 42 --log_in_file`
+`python student_teacher/train.py --device 0 --lmbda 0.1 --loss drmmd --lr 0.1 --with_noise false --noise_decay_freq 500 --seed 42 --log_in_file`
 
 You can vary the deregularization coefficient by altering the argument of `lmbda`. \\
 `--loss drmmd` is DrMMD flow, and `--with_noise false` controls whether to use noise injection.

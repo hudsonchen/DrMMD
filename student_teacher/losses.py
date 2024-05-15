@@ -57,7 +57,7 @@ class mmd2_func(autograd.Function):
         return None, gradients
 
 
-class chard_func(autograd.Function):
+class drmmd_func(autograd.Function):
 
     @staticmethod
     def forward(ctx,true_feature,fake_feature, noisy_fake_feature, lmbda):
@@ -71,11 +71,11 @@ class chard_func(autograd.Function):
             # K_YX = tr.einsum('ijk,ijl->jkl', fake_feature, true_feature).sum(0) / b_size
             # K_YY = tr.einsum('ijk,ijl->jkl', fake_feature, fake_feature).sum(0) / b_size
 
-            # chard = 0.5 * (K_YY.mean() + K_XX.mean() - 2 * K_XY.mean()) 
+            # drmmd = 0.5 * (K_YY.mean() + K_XX.mean() - 2 * K_XY.mean()) 
 
             # K_YY_ = tr.einsum('ijk,ijl->jkl', fake_feature, fake_feature.clone().detach()).sum(0) / b_size
 
-            # chard_first_variation = (K_YY_.mean() - K_YX.mean()) * n_particles
+            # drmmd_first_variation = (K_YY_.mean() - K_YX.mean()) * n_particles
 
             K_XX = tr.einsum('ijk,ijl->jkl', true_feature, true_feature).sum(0) / b_size
             K_YX = tr.einsum('ijk,ijl->jkl', fake_feature, true_feature).sum(0) / b_size
@@ -85,7 +85,7 @@ class chard_func(autograd.Function):
             part2 = -(K_YX @ inv_K_XX @ K_YX.T).mean()
             part3 = (K_XX.T @ inv_K_XX @ K_YX.T).mean() * 2
             part4 = -(K_XX.T @ inv_K_XX @ K_XX).mean()
-            chard = 0.5 * (part1 + part2 + part3 + part4) * (1 + lmbda) / lmbda
+            drmmd = 0.5 * (part1 + part2 + part3 + part4) * (1 + lmbda) / lmbda
 
             K_noisyY_X = tr.einsum('ijk,ijl->jkl', noisy_fake_feature, true_feature).sum(0) / b_size
             K_noisyY_Y = tr.einsum('ijk,ijl->jkl', noisy_fake_feature, fake_feature).sum(0) / b_size
@@ -93,18 +93,18 @@ class chard_func(autograd.Function):
             part1 = K_noisyY_Y.mean() - K_noisyY_X.mean()
             part2 = - (K_noisyY_X @ inv_K_XX @ K_YX.T).mean()
             part3 = (K_noisyY_X @ inv_K_XX @ K_XX).mean()
-            chard_first_variation = (part1 + part2 + part3) / lmbda * (1 + lmbda)
-            chard_first_variation = chard_first_variation * n_particles
+            drmmd_first_variation = (part1 + part2 + part3) / lmbda * (1 + lmbda)
+            drmmd_first_variation = drmmd_first_variation * n_particles
 
-        ctx.save_for_backward(chard_first_variation, noisy_fake_feature)
-        return chard
+        ctx.save_for_backward(drmmd_first_variation, noisy_fake_feature)
+        return drmmd
 
     @staticmethod
     def backward(ctx, grad_output):
 
-        chard_first_variation, noisy_fake_feature = ctx.saved_tensors
+        drmmd_first_variation, noisy_fake_feature = ctx.saved_tensors
         with  tr.enable_grad():
-            gradients = autograd.grad(outputs=chard_first_variation, inputs=noisy_fake_feature,
+            gradients = autograd.grad(outputs=drmmd_first_variation, inputs=noisy_fake_feature,
                         grad_outputs=grad_output,
                         create_graph=True, only_inputs=True)[0] 
         return None, None, gradients, None
@@ -139,18 +139,18 @@ class sobolev(autograd.Function):
                 
         return None, gradients,None
 
-class CHARD(nn.Module):
+class drmmd(nn.Module):
     def __init__(self,student,with_noise,lmbda):
-        super(CHARD, self).__init__()
+        super(drmmd, self).__init__()
         self.student = student
-        self.chard = chard_func.apply
+        self.drmmd = drmmd_func.apply
         self.with_noise=with_noise
         self.lmbda = lmbda
     def forward(self,x,y):
         out = self.student(x)
         self.student.set_noisy_mode(self.with_noise)
         noisy_out = self.student(x)
-        loss = self.chard(y, out, noisy_out, self.lmbda)
+        loss = self.drmmd(y, out, noisy_out, self.lmbda)
         return loss
     
 class MMD(nn.Module):

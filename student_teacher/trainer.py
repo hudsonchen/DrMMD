@@ -1,13 +1,10 @@
 from __future__ import print_function
-
 import torch 
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils import data
 import wandb
 from tqdm import tqdm
-
-
 import numpy as np
 from functools import partial
 import sys,os,time,itertools
@@ -55,8 +52,8 @@ class Trainer(object):
             return MMD_Diffusion(self.student)
         elif self.args.loss=='sobolev':
             return Sobolev(self.student)
-        elif self.args.loss=='chard':
-            return CHARD(self.student,self.args.with_noise, self.args.lmbda)
+        elif self.args.loss=='drmmd':
+            return drmmd(self.student,self.args.with_noise, self.args.lmbda)
     def get_optimizer(self,lr):
         if self.args.optimizer=='SGD':
             return optim.SGD(self.student.parameters(), lr=lr)
@@ -66,9 +63,9 @@ class Trainer(object):
         self.student.apply(weights_init_student)
 
     def train(self,start_epoch=0,total_iters=0):
-        wandb.login(key='c6ea42f5f183e325a719b86d84e7aed50b2dfd5c')
-        wandb.init(project="student_teacher_new")
-        wandb.config.update(self.args)
+        # wandb.login(key='c6ea42f5f183e325a719b86d84e7aed50b2dfd5c')
+        # wandb.init(project="student_teacher_new")
+        # wandb.config.update(self.args)
         print("Starting Training Loop...")
         start_time = time.time()
         
@@ -96,10 +93,9 @@ class Trainer(object):
             if np.mod(epoch,10)==0:
                 new_time = time.time()
                 start_time = new_time
-        wandb.finish()
-
+        
         print("Training Finished!")
-
+        # wandb.finish()
         np.save(os.path.join(self.log_dir, 'test_mmd_all.npy'), test_mmd_all)
         np.save(os.path.join(self.log_dir, 'test_loss_all.npy'), test_loss_all)
         np.save(os.path.join(self.log_dir, 'train_mmd_all.npy'), train_mmd_all)
@@ -184,14 +180,14 @@ def train_epoch(epoch,total_iters,Loss,data_loader, optimizer,phase, device="cud
 
     total_loss = cum_loss/(batch_idx+1)
     total_mmd = cum_mmd/(batch_idx+1)
+    # if np.mod(epoch, 100)==0:
+    #     if phase=='valid':
+    #         wandb.log({"Validation Loss": total_loss, "Validation MMD": total_mmd}, step=epoch)
+    #     elif phase=='train':
+    #         wandb.log({"Train Loss": total_loss, "Train MMD": total_mmd}, step=epoch)
+    #     else:
+    #         pass
     if np.mod(epoch, 100)==0:
-        if phase=='valid':
-            wandb.log({"Validation Loss": total_loss, "Validation MMD": total_mmd}, step=epoch)
-        elif phase=='train':
-            wandb.log({"Train Loss": total_loss, "Train MMD": total_mmd}, step=epoch)
-        else:
-            pass
-    # if np.mod(epoch,10)==0:
-        # print('Epoch: '+ str(epoch) + ' | ' + phase + ' mmd: ' + str(round(total_mmd, 6)) + ' loss: ' + str(round(total_loss, 6)))
+        print('Epoch: '+ str(epoch) + ' | ' + phase + ' mmd: ' + str(round(total_mmd, 6)) + ' loss: ' + str(round(total_loss, 6)))
         # pass
     return total_iters, total_loss, total_mmd
