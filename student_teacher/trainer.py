@@ -21,8 +21,7 @@ class Trainer(object):
         self.log_dir += f"_lr_{str(args.lr)}_with_noise_{str(args.with_noise)}_noise_decay_freq_{args.noise_decay_freq}"
         if not os.path.isdir(self.log_dir):
             print(os.getcwd())
-            os.mkdir(self.log_dir)
-        
+            os.makedirs(self.log_dir, exist_ok=True)
         if args.log_in_file:
             self.log_file = open(os.path.join(self.log_dir, 'log.txt'), 'w', buffering=1)
             sys.stdout = self.log_file

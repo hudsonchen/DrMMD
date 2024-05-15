@@ -45,7 +45,7 @@ parser.add_argument('--dtype', default = 'float32' ,type= str,  help='precision:
 
 # Reproducibility parameters 
 parser.add_argument('--seed', default = 1 ,type= int,  help='seed for the random number generator on pytorch')
-parser.add_argument('--log_dir', default = './results/student_teacher/',type= str,  help='log directory ')
+parser.add_argument('--log_dir', default = './results_new/student_teacher/',type= str,  help='log directory ')
 parser.add_argument('--log_name', default = 'mmd',type= str,  help='log name')
 parser.add_argument('--log_in_file', action='store_true',  help='to log output on a file')
 
