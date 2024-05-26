@@ -15,6 +15,7 @@ notebooks/
 MIED/
 chard/plotting_notebooks/
 figures/
+figures_new/
 wandb/
 student_teacher/results/
 student_teacher/wandb/

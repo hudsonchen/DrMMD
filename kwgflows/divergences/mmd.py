@@ -62,19 +62,19 @@ class mmd_fixed_target:
         # kernel: base_kernel
         # lmbda: float
     
-    def pre_compute(self, X):
+    def pre_compute(self, X, Y, lmbda):
         self.X = X
     
     def get_witness_function(
-        self, z, Y
+        self, z, Y, lmbda
     ) -> Scalar:
         z = z[None, :]
         K_zX = self.kernel.make_distance_matrix(z, self.X)
         K_zY = self.kernel.make_distance_matrix(z, Y)
         return (K_zY.mean(1) - K_zX.mean(1)).squeeze()
 
-    def get_first_variation(self, Y) -> Callable:
-        return partial(self.get_witness_function, Y=Y)
+    def get_first_variation(self, Y, lmbda) -> Callable:
+        return partial(self.get_witness_function, Y=Y, lmbda=lmbda)
 
     def __call__(self, Y) -> Scalar: # mmd^2
         K_XX = self.kernel.make_distance_matrix(self.X, self.X)
@@ -127,10 +127,8 @@ class drmmd_fixed_target:
         self.lmbda = args.lmbda
         self.args = args
         self.g = g
-        # kernel: base_kernel
-        # lmbda: float
 
-    def pre_compute(self, X):
+    def pre_compute(self, X, Y, lmbda):
         self.X = X
         K_XX = self.kernel.make_distance_matrix(X, X)
         if self.args.nystrom > 0:
@@ -140,7 +138,7 @@ class drmmd_fixed_target:
         return
     
     def witness_function(
-        self, z, Y
+        self, z, Y, lmbda
     ) -> Scalar:
         z = z[None, :]
         N, M = Y.shape[0], self.X.shape[0]
@@ -151,26 +149,70 @@ class drmmd_fixed_target:
 
         part1 = K_zY.mean(axis=1) - K_zX.mean(axis=1)
         part2 = - (K_zX @ self.K_XX_inv @ K_XY).mean(axis=1)
-        part3 = K_zX @ self.K_XX_inv @ K_XX.mean(axis=1)
+        part3 = (K_zX @ self.K_XX_inv @ K_XX).mean(axis=1)
         return (part1 + part2 + part3).squeeze() / self.lmbda * 2 * (1 + self.lmbda)
     
-    def get_first_variation(self, Y) -> Callable:
-        return partial(self.witness_function, Y=Y)
+    def get_first_variation(self, Y, lmbda) -> Callable:
+        return partial(self.witness_function, Y=Y, lmbda=lmbda)
 
     def __call__(self, Y) -> Scalar:
         N, M = Y.shape[0], self.X.shape[0]
         K_XX = self.kernel.make_distance_matrix(self.X, self.X)
         K_XY = self.kernel.make_distance_matrix(self.X, Y)
         K_YY = self.kernel.make_distance_matrix(Y, Y)
-        inv_K_XX = jnp.linalg.inv(K_XX + M * self.lmbda * jnp.eye(K_XX.shape[0]))
 
         part1 = K_YY.mean() + K_XX.mean() - 2 * K_XY.mean()
-        part2 = -(K_XY.T @ inv_K_XX @ K_XY).mean()
-        part3 = (K_XX.T @ inv_K_XX @ K_XY).mean() * 2
-        part4 = -(K_XX.T @ inv_K_XX @ K_XX).mean()
+        part2 = -(K_XY.T @ self.K_XX_inv @ K_XY).mean()
+        part3 = (K_XX.T @ self.K_XX_inv @ K_XY).mean() * 2
+        part4 = -(K_XX.T @ self.K_XX_inv @ K_XX).mean()
 
         return (part1 + part2 + part3 + part4) / self.lmbda * (1 + self.lmbda)
     
+
+class drmmd_fixed_target_adaptive:
+    def __init__(self, args, kernel, g):
+        self.kernel = kernel
+        self.args = args
+        self.g = g
+
+    def pre_compute(self, X, Y, lmbda):
+        self.X = X
+        self.drmmd = self.__call__(Y, lmbda)
+        return
+    
+    def witness_function(
+        self, z, Y, lmbda
+    ) -> Scalar:
+        z = z[None, :]
+        N, M = Y.shape[0], self.X.shape[0]
+        K_zY = self.kernel.make_distance_matrix(z, Y)
+        K_zX = self.kernel.make_distance_matrix(z, self.X)
+        K_XX = self.kernel.make_distance_matrix(self.X, self.X)
+        K_XY = self.kernel.make_distance_matrix(self.X, Y)
+
+        K_XX_inv = jnp.linalg.inv(K_XX + self.X.shape[0] * lmbda * jnp.eye(K_XX.shape[0]))
+        part1 = K_zY.mean(axis=1) - K_zX.mean(axis=1)
+        part2 = - (K_zX @ K_XX_inv @ K_XY).mean(axis=1)
+        part3 = (K_zX @ K_XX_inv @ K_XX).mean(axis=1)
+        return (part1 + part2 + part3).squeeze() / lmbda * 2 * (1 + lmbda)
+    
+    def get_first_variation(self, Y, lmbda) -> Callable:
+        return partial(self.witness_function, Y=Y, lmbda=lmbda)
+
+    def __call__(self, Y, lmbda) -> Scalar:
+        N, M = Y.shape[0], self.X.shape[0]
+        K_XX = self.kernel.make_distance_matrix(self.X, self.X)
+        K_XY = self.kernel.make_distance_matrix(self.X, Y)
+        K_YY = self.kernel.make_distance_matrix(Y, Y)
+        K_XX_inv = jnp.linalg.inv(K_XX + self.X.shape[0] * lmbda * jnp.eye(K_XX.shape[0]))
+
+        part1 = K_YY.mean() + K_XX.mean() - 2 * K_XY.mean()
+        part2 = -(K_XY.T @ K_XX_inv @ K_XY).mean()
+        part3 = (K_XX.T @ K_XX_inv @ K_XY).mean() * 2
+        part4 = -(K_XX.T @ K_XX_inv @ K_XX).mean()
+
+        return (part1 + part2 + part3 + part4) / lmbda * (1 + lmbda)
+
 
 class spectral_drmmd_fixed_target:
     def __init__(self, args, kernel, g):

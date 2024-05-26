@@ -72,27 +72,30 @@ def evaluate(args, ret, rate):
 
     T = ret.Ys.shape[0]
     X = ret.divergence.X
-
+    Y = ret.Ys[0, :]
     wass_distance = compute_wasserstein_distance_trajectory(ret.Ys, jnp.repeat(X[None, :], T, axis=0), eval_freq)
     
     mmd_divergence = mmd_fixed_target(args, args.kernel_fn, None)
-    mmd_divergence.pre_compute(X)
+    mmd_divergence.pre_compute(X, Y, args.lmbda)
     mmd_distance = jnp.sqrt(jax.vmap(mmd_divergence)(ret.Ys[::eval_freq, :]))
 
     drmmd_divergence = drmmd_fixed_target(args, args.kernel_fn, None)
-    drmmd_divergence.pre_compute(X)
+    drmmd_divergence.pre_compute(X, Y, args.lmbda)
     drmmd_distance = jax.vmap(drmmd_divergence)(ret.Ys[::eval_freq, :])
 
     fig, axs = plt.subplots(1, 4, figsize=(12, 4))
     axs[0].plot(wass_distance, label='Wass 2')
     axs[0].set_xlabel('Iteration')
     axs[0].set_ylabel('Wasserstein 2 distance')
+    axs[0].set_yscale('log')
     axs[1].plot(mmd_distance, label='mmd')
+    axs[1].set_yscale('log')
     axs[1].set_xlabel('Iteration')
     axs[1].set_ylabel('MMD distance')
     axs[2].plot(drmmd_distance, label='drmmd')
     axs[2].set_xlabel('Iteration')
     axs[2].set_ylabel('drmmd distance')
+    axs[2].set_yscale('log')
     plt.savefig(f'{args.save_path}/distance.png')
     return 
 

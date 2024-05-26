@@ -1,5 +1,5 @@
 import os
-# os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.70'
+os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.50'
 import jax
 import jax.numpy as jnp
 from jax import jit, random, vmap
@@ -39,7 +39,8 @@ def get_config():
     parser.add_argument('--lmbda', type=float, default=1.0)
     parser.add_argument('--step_size', type=float, default=0.001) # Step size will be rescaled by lmbda, the actual step size = step size * lmbda
     parser.add_argument('--nystrom', type=int, default=0)
-    parser.add_argument('--save_path', type=str, default='./results_rebuttal/')
+    parser.add_argument('--adaptive_lmbda', action='store_true')
+    parser.add_argument('--save_path', type=str, default='./results_new/')
     parser.add_argument('--bandwidth', type=float, default=1.0)
     parser.add_argument('--step_num', type=int, default=10000)
     parser.add_argument('--source_particle_num', type=int, default=300)
@@ -49,9 +50,9 @@ def get_config():
     parser.add_argument('--logccv', type=float, default=1.0)
     parser.add_argument('--opt', type=str, default='sgd')
     args = parser.parse_args()  
-    if args.flow == 'drmmd_spectral' or args.flow == 'drmmd':
-        if args.dataset == 'ThreeRing':
-            args.step_size *= min(args.lmbda, 1.0) # Step size will be rescaled by lmbda
+    # if args.flow == 'drmmd_spectral' or args.flow == 'drmmd':
+    #     if args.dataset == 'ThreeRing':
+    #         args.step_size *= min(args.lmbda, 1.0) # Step size will be rescaled by lmbda
     return args
 
 def create_dir(args):
@@ -65,19 +66,13 @@ def create_dir(args):
     else:
         args.save_path += f"{args.dataset}_dataset/{args.kernel}_kernel/{args.flow}_flow/"
         args.save_path += f"__lmbda_{args.lmbda}__step_size_{round(args.step_size, 8)}__bandwidth_{args.bandwidth}__step_num_{args.step_num}"
+        args.save_path += f"__adaptive_lmbda_{str(args.adaptive_lmbda)}"
         args.save_path += f"__source_particle_num_{args.source_particle_num}__inject_noise_scale_{args.inject_noise_scale}__nystrom_{str(args.nystrom)}"
         args.save_path += f"__logccv_{args.logccv}__opt_{args.opt}__seed_{args.seed}"
     os.makedirs(args.save_path, exist_ok=True)
     with open(f'{args.save_path}/configs', 'wb') as handle:
         pickle.dump(vars(args), handle, protocol=pickle.HIGHEST_PROTOCOL)
     return args
-
-
-# def create_gradient_flow_config(args, kernel):
-#     config = GradientFlowConfig(flow=args.flow,step_size=args.step_size, 
-#                                 num_steps=args.step_num, opt=args.opt,
-#                                 kernel=kernel)
-#     return config
 
 
 def main(args):
@@ -115,15 +110,14 @@ def main(args):
 
     if args.flow == 'mmd':
         divergence = mmd_fixed_target(args, kernel, None)
-        divergence.pre_compute(X)
+        divergence.pre_compute(X, Y, args.lmbda)
     elif args.flow == 'drmmd':
-        divergence = drmmd_fixed_target(args, kernel, None)
-        divergence.pre_compute(X)
-    elif args.flow == 'ula':
-        if args.dataset == 'MixGaussian':
-            divergence = ula(kernel, args.lmbda, X, target_dist)
+        if args.adaptive_lmbda:
+            divergence = drmmd_fixed_target_adaptive(args, kernel, None)
+            divergence.pre_compute(X, Y, args.lmbda)
         else:
-            raise NotImplementedError("ULA only implemented for MixGaussian")
+            divergence = drmmd_fixed_target(args, kernel, None)
+            divergence.pre_compute(X, Y, args.lmbda)
     else:
         raise NotImplementedError
     
